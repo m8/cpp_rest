@@ -1,83 +1,85 @@
 #include "crow_all.h"
-
 #include <cstdio>
 #include <iostream>
 #include <shared_mutex>
-
-Lock sharedLock;
+#include <map>
+#include <vector>
+#include <string>
+#include <mutex>
 
 typedef std::shared_mutex Lock;
-typedef std::unique_lock<Lock> WriteLock; // C++ 11
-typedef std::shared_lock<Lock> ReadLock; // C++ 14
+typedef std::unique_lock<Lock> WriteLock;
+typedef std::shared_lock<Lock> ReadLock;
 
 static uint64_t last_team_id = 0;
 
-class Team
-{
+class Team {
 public:
-  Team() : id(0) {}
+    Team() : id(0), data(0) {}
+    int id;
+    int data;
+    // std::vector<User> users;
 
-  int id;
-  int data;
-  // std::vector<User> users;
-  std::string get_name()
-  {
-    return "Team " + std::to_string(id);
-  }
+    std::string get_data() {
+        ReadLock lock(m_lock);
+        return "Team " + std::to_string(id);
+    }
+
+    void set_data(int newData) {
+        WriteLock lock(m_lock);
+        data = newData;
+    }
+
+private:
+    Lock m_lock;
 };
 
-class Database
-{
+class Database {
 public:
-  std::map<int, Team> teams;
+    std::map<int, Team*> teams;
 
-  Team GET_team(int id)
-  {
-    ReadLock lock(sharedLock);
-    return teams[id];
-  }
-
-  std::vector<Team> GET_teams()
-  {
-    ReadLock lock(sharedLock);
-    std::vector<Team> result;
-    for (auto it = teams.begin(); it != teams.end(); it++)
-    {
-      result.push_back(it->second);
+    std::string GET_team(int id) {
+        return teams.at(id)->get_data();
     }
-    return result;
-  }
 
-  void POST_team()
-  {
-    WriteLock lock(sharedLock);
-    Team team;
-    team.id = last_team_id++;
-    teams[team.id] = team;
-  }
-
-  void DELETE_team(int id)
-  {
-    WriteLock lock(sharedLock);
-    teams.erase(id);
-  }
-
-  void PATCH_team(int id)
-  {
-    WriteLock lock(sharedLock);
-    teams[id].data = rand();
-  }
-
-  void init(int n_teams)
-  {
-    for (int i = 0; i < n_teams; i++)
-    {
-      Team team;
-      team.id = i;
-      this->teams[i] = team;
+    std::vector<std::string> GET_teams() {
+        std::vector<std::string> result;
+        for (auto &entry : teams) {
+            result.push_back(entry.second->get_data());
+        }
+        return result;
     }
-  }
+
+    void POST_team() {
+        WriteLock lock(globalLock);
+        Team team;
+        team.id = ++last_team_id;
+        teams[team.id] = &team;
+    }
+
+    void DELETE_team(int id) {
+        WriteLock lock(globalLock);
+        teams.erase(id);
+    }
+
+    void PATCH_team(int id, int newData) {
+        teams.at(id)->set_data(newData);
+    }
+
+    void init(int n_teams) {
+        WriteLock lock(globalLock);
+        for (int i = 0; i < n_teams; ++i) {
+            Team* team = new Team();
+            team->id = i;
+            teams[i] = team;
+            std::cout << "Team " << i << " created" << std::endl;
+        }
+    }
+
+private:
+    Lock globalLock;
 };
+
 
 int main(int argc, char* argv[])
 {
@@ -96,8 +98,7 @@ int main(int argc, char* argv[])
   /* Start REST api*/
   crow::SimpleApp app;
 
-  CROW_ROUTE(app, "/")
-  ([]() { return "Hello world"; });
+  CROW_ROUTE(app, "/")([]() { return "Hello world"; });
 
   CROW_ROUTE(app, "/teams").methods(crow::HTTPMethod::POST)([&](const crow::request& req) {
     db.POST_team();
@@ -108,7 +109,7 @@ int main(int argc, char* argv[])
     std::string result = "";
     for (auto team : db.GET_teams())
     {
-      result += team.get_name() + "\n";
+      result += team + "\n";
     }
     return crow::response(200, result);
   });
@@ -119,15 +120,14 @@ int main(int argc, char* argv[])
   });
 
   CROW_ROUTE(app, "/teams/<int>").methods(crow::HTTPMethod::GET)([&](const crow::request& req, int id) {
-    return crow::response(200, db.GET_team(id).get_name());
+    auto team = db.GET_team(id);
+    return crow::response(200, team);
   });
 
   CROW_ROUTE(app, "/teams/<int>").methods(crow::HTTPMethod::PATCH)([&](const crow::request& req, int id) {
-    Team team;
-    team.id = id;
-    db.PATCH_team(id);
+    //db.PATCH_team(id);
     return crow::response(200);
   });
 
-  app.port(18081).concurrency(n_workers).run();
+  app.port(18080).concurrency(n_workers).run();
 }
