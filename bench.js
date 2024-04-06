@@ -9,7 +9,7 @@ export let options = {
     ],
 };
 
-const BASE_URL = 'http://localhost:18081';
+const BASE_URL = 'http://localhost:18080';
 
 let initialTeamCount = 100;
 const getTeamsResponse = () => http.get(`${BASE_URL}/teams`);
