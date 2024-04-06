@@ -18,66 +18,67 @@ public:
     Team() : id(0), data(0) {}
     int id;
     int data;
-    // std::vector<User> users;
 
     std::string get_data() {
-        ReadLock lock(m_lock);
+        ReadLock lock(private_lock);
         return "Team " + std::to_string(id);
     }
 
     void set_data(int newData) {
-        WriteLock lock(m_lock);
+        WriteLock lock(private_lock);
         data = newData;
     }
-
 private:
-    Lock m_lock;
+    Lock private_lock;
 };
 
 class Database {
 public:
-    std::map<int, Team*> teams;
+    std::map<int, Team*> global_team_list;
 
     std::string GET_team(int id) {
-        return teams.at(id)->get_data();
+        return global_team_list.at(id)->get_data();
     }
 
     std::vector<std::string> GET_teams() {
         std::vector<std::string> result;
-        for (auto &entry : teams) {
+        for (auto &entry : global_team_list) {
             result.push_back(entry.second->get_data());
         }
         return result;
     }
 
     void POST_team() {
-        WriteLock lock(globalLock);
+        WriteLock lock(global_lock);
         Team team;
         team.id = ++last_team_id;
-        teams[team.id] = &team;
+        global_team_list[team.id] = &team;
     }
 
     void DELETE_team(int id) {
-        WriteLock lock(globalLock);
-        teams.erase(id);
+        WriteLock lock(global_lock);
+        global_team_list.erase(id);
     }
 
     void PATCH_team(int id, int newData) {
-        teams.at(id)->set_data(newData);
+        global_team_list.at(id)->set_data(newData);
     }
 
+    // Now initialize some teams
     void init(int n_teams) {
-        WriteLock lock(globalLock);
+        WriteLock lock(global_lock);
         for (int i = 0; i < n_teams; ++i) {
             Team* team = new Team();
             team->id = i;
-            teams[i] = team;
+
+            // Set the teams now
+            global_team_list[i] = team;
             std::cout << "Team " << i << " created" << std::endl;
         }
     }
 
 private:
-    Lock globalLock;
+    Lock global_lock;
 };
 
 
