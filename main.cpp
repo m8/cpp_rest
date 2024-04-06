@@ -11,6 +11,10 @@ typedef std::shared_mutex Lock;
 typedef std::unique_lock<Lock> WriteLock;
 typedef std::shared_lock<Lock> ReadLock;
 
+#ifndef TEAM_CNT
+#define TEAM_CNT 10000
+#endif
+
 static uint64_t last_team_id = 0;
 
 class Team {
@@ -73,7 +77,6 @@ public:
 
             // Set the teams now
             global_team_list[i] = team;
-            std::cout << "Team " << i << " created" << std::endl;
         }
     }
 
@@ -85,7 +88,6 @@ private:
 int main(int argc, char* argv[])
 {
   int n_workers = std::thread::hardware_concurrency();
-  int n_teams = 100;
 
   if (argc > 1)
   {
@@ -94,7 +96,7 @@ int main(int argc, char* argv[])
 
   /* Init simple database */
   Database db;
-  db.init(n_teams);
+  db.init(TEAM_CNT);
 
   /* Start REST api*/
   crow::SimpleApp app;
