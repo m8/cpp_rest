@@ -1,5 +1,5 @@
 .vscode
 build
 rocksdb
-tempdb
+temp_db
 bench_rocksdb

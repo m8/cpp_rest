@@ -12,7 +12,7 @@ typedef std::unique_lock<Lock> WriteLock;
 typedef std::shared_lock<Lock> ReadLock;
 
 #ifndef TEAM_CNT
-#define TEAM_CNT 10000
+#define TEAM_CNT 20000
 #endif
 
 static uint64_t last_team_id = 0;
