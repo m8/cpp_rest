@@ -12,25 +12,25 @@ typedef std::unique_lock<Lock> WriteLock;
 typedef std::shared_lock<Lock> ReadLock;
 
 #ifndef TEAM_CNT
-#define TEAM_CNT 20000
+#define TEAM_CNT 100000
 #endif
 
 static uint64_t last_team_id = 0;
 
 class Team {
 public:
-    Team() : id(0), data(0) {}
+    Team() : id(0), title("") {}
     int id;
-    int data;
+    std::string title;
 
     std::string get_data() {
         ReadLock lock(private_lock);
-        return "Team " + std::to_string(id);
+        return "{ id: " + std::to_string(id) + ", title: " + title + "}";
     }
 
-    void set_data(int newData) {
+    void set_data(std::string newData) {
         WriteLock lock(private_lock);
-        data = newData;
+        title = newData;
     }
 private:
     Lock private_lock;
@@ -64,7 +64,7 @@ public:
         global_team_list.erase(id);
     }
 
-    void PATCH_team(int id, int newData) {
+    void PATCH_team(int id, std::string newData) {
         global_team_list.at(id)->set_data(newData);
     }
 
@@ -74,6 +74,7 @@ public:
         for (int i = 0; i < n_teams; ++i) {
             Team* team = new Team();
             team->id = i;
+            team->title = "Team ___";
 
             // Set the teams now
             global_team_list[i] = team;
@@ -100,6 +101,7 @@ int main(int argc, char* argv[])
 
   /* Start REST api*/
   crow::SimpleApp app;
+  app.loglevel(crow::LogLevel::Warning);
 
   CROW_ROUTE(app, "/")([]() { return "Hello world"; });
 
